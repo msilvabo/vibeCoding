@@ -1,0 +1,10 @@
+pass DB
+y1Y75zB6IgbULTo8
+
+proyecto
+luxo-state-agy
+
+
+supabase login
+supabase init
+supabase link --project-ref tvevzamaaorchovkcqlm
