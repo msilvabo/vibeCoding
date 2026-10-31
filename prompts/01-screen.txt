@@ -1,0 +1,5 @@
+plan 
+Vamos a crear el home screen con propiedades ficticias. 
+Sigue guidelines.md y las instructions.md para crear el HomeScreen Crea un set de datos ficticios para mostrar las propiedades que eventualmente vendrán de una base de datos. 
+El home screen debe de lucir igual al código dado en el archivo code.html @HomeScreen
+El sitio no debe tener modo oscuro
