@@ -8,3 +8,6 @@ luxo-state-agy
 supabase login
 supabase init
 supabase link --project-ref tvevzamaaorchovkcqlm
+
+NEXT_PUBLIC_SUPABASE_URL=https://tvevzamaaorchovkcqlm.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_dRDRT6e5xaqsr5hq13xnyQ_EffWTbl5

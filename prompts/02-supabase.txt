@@ -1,0 +1,3 @@
+Vamos a crear la base de datos en Supabase. Por favor use el MCP de Supabase que ya esta conectado.
+  Vamos a crear las propiedades en base de datos y también En el home screen tengamos una paginación de las propiedades.
+  La paginación debe ser del lado del servidor usando la funciónes de Next.js.

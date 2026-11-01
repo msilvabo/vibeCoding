@@ -3,6 +3,8 @@
 import React from 'react';
 import { ListingType, Property } from '@/types/property';
 import PropertyCard from '@/components/properties/PropertyCard';
+import Pagination from '@/components/common/Pagination';
+import { PaginationMetadata } from '@/lib/supabase/properties';
 
 interface MarketSectionProps {
   properties: Property[];
@@ -10,8 +12,12 @@ interface MarketSectionProps {
   onListingTypeChange: (type: ListingType) => void;
   favorites: Set<string>;
   onToggleFavorite: (id: string) => void;
-  hasMore: boolean;
-  onLoadMore: () => void;
+  pagination: PaginationMetadata;
+  baseParams?: {
+    type?: string;
+    listing?: string;
+    q?: string;
+  };
 }
 
 const LISTING_TABS: Array<{ id: ListingType; label: string }> = [
@@ -26,8 +32,8 @@ export default function MarketSection({
   onListingTypeChange,
   favorites,
   onToggleFavorite,
-  hasMore,
-  onLoadMore,
+  pagination,
+  baseParams,
 }: MarketSectionProps) {
   return (
     <section>
@@ -38,12 +44,12 @@ export default function MarketSection({
             New in Market
           </h2>
           <p className="text-nordic-muted mt-1 text-sm">
-            Fresh opportunities added this week.
+            Fresh opportunities directly from our curated catalog.
           </p>
         </div>
 
         {/* Listing Type Tabs (All / Buy / Rent) */}
-        <div className="flex bg-white p-1 rounded-lg border border-nordic-dark/5 self-start sm:self-auto">
+        <div className="flex bg-white p-1 rounded-lg border border-nordic-dark/5 self-start sm:self-auto shadow-xs">
           {LISTING_TABS.map((tab) => {
             const isActive = activeListingType === tab.id;
             return (
@@ -78,7 +84,7 @@ export default function MarketSection({
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6">
           {properties.map((property) => (
             <PropertyCard
               key={property.id}
@@ -90,18 +96,14 @@ export default function MarketSection({
         </div>
       )}
 
-      {/* Load More Button */}
-      {hasMore && (
-        <div className="mt-12 text-center">
-          <button
-            type="button"
-            onClick={onLoadMore}
-            className="px-8 py-3 bg-white border border-nordic-dark/10 hover:border-mosque hover:text-mosque text-nordic-dark font-medium rounded-lg transition-all hover:shadow-md cursor-pointer"
-          >
-            Load more properties
-          </button>
-        </div>
-      )}
+      {/* Server Pagination */}
+      <Pagination
+        currentPage={pagination.page}
+        totalPages={pagination.totalPages}
+        totalItems={pagination.total}
+        pageSize={pagination.pageSize}
+        baseParams={baseParams}
+      />
     </section>
   );
 }

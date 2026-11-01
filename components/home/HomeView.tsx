@@ -1,27 +1,79 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useTransition } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import { ListingType, Property, PropertyType } from '@/types/property';
+import { PaginationMetadata } from '@/lib/supabase/properties';
 import HeroSection from './HeroSection';
 import FeaturedSection from './FeaturedSection';
 import MarketSection from './MarketSection';
 
 interface HomeViewProps {
-  initialFeaturedProperties: Property[];
-  initialMarketProperties: Property[];
+  featuredProperties: Property[];
+  marketProperties: Property[];
+  pagination: PaginationMetadata;
+  currentFilters: {
+    page: number;
+    propertyType: PropertyType;
+    listingType: ListingType;
+    searchQuery: string;
+  };
 }
 
 export default function HomeView({
-  initialFeaturedProperties,
-  initialMarketProperties,
+  featuredProperties,
+  marketProperties,
+  pagination,
+  currentFilters,
 }: HomeViewProps) {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<PropertyType>('all');
-  const [activeListingType, setActiveListingType] = useState<ListingType>('all');
-  const [favorites, setFavorites] = useState<Set<string>>(new Set());
-  const [visibleCount, setVisibleCount] = useState<number>(6);
+  const router = useRouter();
+  const pathname = usePathname();
+  const [isPending, startTransition] = useTransition();
 
-  // Toggle favorite property handler
+  const [searchQuery, setSearchQuery] = useState(currentFilters.searchQuery);
+  const [favorites, setFavorites] = useState<Set<string>>(new Set());
+
+  // Helper to build URL with updated search parameters
+  const updateQueryParams = (updates: {
+    page?: number | null;
+    type?: PropertyType | null;
+    listing?: ListingType | null;
+    q?: string | null;
+  }) => {
+    const params = new URLSearchParams();
+
+    // Type filter
+    const effectiveType = updates.type !== undefined ? updates.type : currentFilters.propertyType;
+    if (effectiveType && effectiveType !== 'all') {
+      params.set('type', effectiveType);
+    }
+
+    // Listing filter
+    const effectiveListing = updates.listing !== undefined ? updates.listing : currentFilters.listingType;
+    if (effectiveListing && effectiveListing !== 'all') {
+      params.set('listing', effectiveListing);
+    }
+
+    // Search query
+    const effectiveQuery = updates.q !== undefined ? updates.q : searchQuery;
+    if (effectiveQuery && effectiveQuery.trim()) {
+      params.set('q', effectiveQuery.trim());
+    }
+
+    // Page (reset to 1 if any filter changed, unless explicitly setting page)
+    const effectivePage = updates.page !== undefined ? updates.page : 1;
+    if (effectivePage && effectivePage > 1) {
+      params.set('page', effectivePage.toString());
+    }
+
+    const qs = params.toString();
+    const targetUrl = qs ? `${pathname}?${qs}` : pathname;
+
+    startTransition(() => {
+      router.push(targetUrl, { scroll: false });
+    });
+  };
+
   const handleToggleFavorite = (id: string) => {
     setFavorites((prev) => {
       const next = new Set(prev);
@@ -34,87 +86,51 @@ export default function HomeView({
     });
   };
 
-  // Filter featured properties based on search query and category
-  const filteredFeatured = useMemo(() => {
-    return initialFeaturedProperties.filter((item) => {
-      // Category filter
-      if (selectedCategory !== 'all' && item.propertyType !== selectedCategory) {
-        return false;
-      }
-      // Listing type filter
-      if (activeListingType !== 'all' && item.listingType !== activeListingType) {
-        return false;
-      }
-      // Search text query
-      if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase().trim();
-        const matchesTitle = item.title.toLowerCase().includes(query);
-        const matchesLocation = item.location.displayAddress.toLowerCase().includes(query);
-        if (!matchesTitle && !matchesLocation) return false;
-      }
-      return true;
-    });
-  }, [initialFeaturedProperties, selectedCategory, activeListingType, searchQuery]);
+  const handleCategoryChange = (category: PropertyType) => {
+    updateQueryParams({ type: category, page: 1 });
+  };
 
-  // Filter market properties
-  const filteredMarket = useMemo(() => {
-    return initialMarketProperties.filter((item) => {
-      // Category filter
-      if (selectedCategory !== 'all' && item.propertyType !== selectedCategory) {
-        return false;
-      }
-      // Listing type filter
-      if (activeListingType !== 'all' && item.listingType !== activeListingType) {
-        return false;
-      }
-      // Search text query
-      if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase().trim();
-        const matchesTitle = item.title.toLowerCase().includes(query);
-        const matchesLocation = item.location.displayAddress.toLowerCase().includes(query);
-        if (!matchesTitle && !matchesLocation) return false;
-      }
-      return true;
-    });
-  }, [initialMarketProperties, selectedCategory, activeListingType, searchQuery]);
+  const handleListingTypeChange = (listing: ListingType) => {
+    updateQueryParams({ listing, page: 1 });
+  };
 
-  // Paginated visible properties for 'New in Market'
-  const visibleMarketProperties = useMemo(() => {
-    return filteredMarket.slice(0, visibleCount);
-  }, [filteredMarket, visibleCount]);
-
-  const hasMore = visibleCount < filteredMarket.length;
-
-  const handleLoadMore = () => {
-    setVisibleCount((prev) => prev + 4);
+  const handleSearchSubmit = () => {
+    updateQueryParams({ q: searchQuery, page: 1 });
   };
 
   return (
-    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20">
+    <main className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20 transition-opacity duration-200 ${isPending ? 'opacity-70' : 'opacity-100'}`}>
       {/* Hero Section with search & category pills */}
       <HeroSection
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
-        selectedCategory={selectedCategory}
-        onCategoryChange={setSelectedCategory}
+        selectedCategory={currentFilters.propertyType}
+        onCategoryChange={handleCategoryChange}
+        onSearchSubmit={handleSearchSubmit}
       />
 
-      {/* Featured Collections Section */}
-      <FeaturedSection
-        properties={filteredFeatured}
-        favorites={favorites}
-        onToggleFavorite={handleToggleFavorite}
-      />
+      {/* Featured Collections Section (Only shown when not deeply searching/filtering or when featured exists) */}
+      {featuredProperties.length > 0 && currentFilters.page === 1 && (
+        <FeaturedSection
+          properties={featuredProperties}
+          favorites={favorites}
+          onToggleFavorite={handleToggleFavorite}
+        />
+      )}
 
-      {/* New in Market Section */}
+      {/* New in Market Section with Server Pagination */}
       <MarketSection
-        properties={visibleMarketProperties}
-        activeListingType={activeListingType}
-        onListingTypeChange={setActiveListingType}
+        properties={marketProperties}
+        activeListingType={currentFilters.listingType}
+        onListingTypeChange={handleListingTypeChange}
         favorites={favorites}
         onToggleFavorite={handleToggleFavorite}
-        hasMore={hasMore}
-        onLoadMore={handleLoadMore}
+        pagination={pagination}
+        baseParams={{
+          type: currentFilters.propertyType,
+          listing: currentFilters.listingType,
+          q: currentFilters.searchQuery,
+        }}
       />
     </main>
   );
